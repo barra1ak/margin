@@ -48,8 +48,33 @@ button:focus-visible,input:focus-visible{outline:3px solid rgba(174,201,91,.7);o
 .principle{background:linear-gradient(135deg,#eef5e9,#f8f5e8);border:1px solid #d7e2d0;border-radius:22px;padding:30px;margin-top:22px}.principle blockquote{font-size:26px;line-height:1.35;margin:0;color:var(--deep);font-weight:780;letter-spacing:-.025em}.principle p{margin:14px 0 0;color:var(--muted);line-height:1.6}
 .end{padding:68px 64px;text-align:center;background:linear-gradient(145deg,#f5f1e4,#edf4e9)}.end h2{font-size:44px;letter-spacing:-.045em;margin:10px 0 12px}.end .lede{margin:0 auto}.takeaway{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:860px;margin:28px auto}.takeaway div{padding:18px;background:white;border:1px solid var(--line);border-radius:16px}.takeaway strong{display:block;color:var(--green);font-size:23px}.small{font-size:12px;color:var(--muted);line-height:1.55;max-width:720px;margin:24px auto 0}
 .toast{position:fixed;right:20px;bottom:20px;background:var(--deep);color:white;padding:12px 15px;border-radius:11px;display:none;z-index:50;box-shadow:var(--shadow)}.toast.show{display:block}
-@media(max-width:880px){.topbar{padding:10px 14px}.brand{min-width:auto}.brandtext{display:none}.hero{padding:54px 24px}.section{display:block;padding:44px 24px}.sidebar{position:static;margin-bottom:24px}.lab,.trapbox,.recovery{grid-template-columns:1fr}.livegrid{grid-template-columns:1fr 1fr}.choices{grid-template-columns:1fr}.impactgrid{grid-template-columns:1fr 1fr}.end{padding:54px 24px}}
-@media(max-width:500px){.hero h1{font-size:44px}.livegrid,.takeaway{grid-template-columns:1fr}.splitlabels{flex-direction:column}.impactgrid{grid-template-columns:1fr}.stack{gap:10px}.barcol{width:88px}}
+@media(max-width:1050px){
+  .topbar{padding:10px 14px}
+  .brand{min-width:auto}
+  .brandtext{display:none}
+  .hero{padding:50px 28px}
+  .section{display:block;padding:42px 28px}
+  .sidebar{position:static;margin-bottom:22px}
+  .lab,.trapbox,.recovery{grid-template-columns:1fr}
+  .livegrid{grid-template-columns:1fr 1fr}
+  .choices{grid-template-columns:1fr}
+  .impactgrid{grid-template-columns:1fr 1fr}
+  .controls,.chart,.beforeafter,.card,.content{min-width:0;width:100%}
+  .end{padding:52px 28px}
+}
+@media(max-width:600px){
+  .hero{padding:42px 20px}
+  .hero h1{font-size:42px}
+  .section{padding:36px 20px}
+  .livegrid,.takeaway{grid-template-columns:1fr}
+  .splitlabels{flex-direction:column}
+  .impactgrid{grid-template-columns:1fr}
+  .stack{gap:10px}
+  .barcol{width:88px}
+  .recovery{gap:24px}
+  .dial{width:190px;height:190px}
+  .dialinner{width:142px;height:142px}
+}
 </style>
 </head>
 <body>
@@ -235,55 +260,79 @@ button:focus-visible,input:focus-visible{outline:3px solid rgba(174,201,91,.7);o
 </script>
   <script>
 (function () {
-  function sendHeight() {
-    const height = Math.max(
+  let lastHeight = 0;
+  let resizeTimer = null;
+
+  function getPageHeight() {
+    const shell = document.querySelector('.shell');
+    return Math.ceil(Math.max(
+      shell ? shell.scrollHeight : 0,
       document.body.scrollHeight,
       document.body.offsetHeight,
       document.documentElement.scrollHeight,
-      document.documentElement.offsetHeight,
-      document.documentElement.clientHeight
-    );
+      document.documentElement.offsetHeight
+    ));
+  }
 
-    window.parent.postMessage(
-      {
+  function sendHeight(force = false) {
+    window.requestAnimationFrame(function () {
+      const height = getPageHeight();
+      if (!force && Math.abs(height - lastHeight) < 3) return;
+      lastHeight = height;
+      window.parent.postMessage({
         type: 'alcivia-simulator-height',
         height: height
-      },
-      '*'
-    );
-  }
-
-  // Send height when page first loads
-  window.addEventListener('load', function () {
-    sendHeight();
-
-    // Run again after fonts/layout have settled
-    setTimeout(sendHeight, 250);
-    setTimeout(sendHeight, 750);
-  });
-
-  // Automatically detect content/layout changes
-  if ('ResizeObserver' in window) {
-    const resizeObserver = new ResizeObserver(function () {
-      sendHeight();
+      }, '*');
     });
-
-    resizeObserver.observe(document.documentElement);
-    resizeObserver.observe(document.body);
   }
 
-  // Catch interactive elements that may expand/change the page
+  function scheduleHeight() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      sendHeight();
+    }, 80);
+  }
+
+  window.addEventListener('load', function () {
+    sendHeight(true);
+    setTimeout(function(){ sendHeight(true); }, 250);
+    setTimeout(function(){ sendHeight(true); }, 750);
+    setTimeout(function(){ sendHeight(true); }, 1500);
+  });
+
+  if ('ResizeObserver' in window) {
+    const observer = new ResizeObserver(function () {
+      scheduleHeight();
+    });
+    observer.observe(document.body);
+    const shell = document.querySelector('.shell');
+    if (shell) observer.observe(shell);
+  }
+
+  if ('MutationObserver' in window) {
+    const mutationObserver = new MutationObserver(function () {
+      scheduleHeight();
+    });
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: false
+    });
+  }
+
+  document.addEventListener('input', scheduleHeight);
+  document.addEventListener('change', scheduleHeight);
   document.addEventListener('click', function () {
-    setTimeout(sendHeight, 100);
-    setTimeout(sendHeight, 400);
+    scheduleHeight();
+    setTimeout(function(){ sendHeight(); }, 300);
   });
+  window.addEventListener('resize', scheduleHeight);
 
-  document.addEventListener('input', function () {
-    setTimeout(sendHeight, 50);
-  });
-
-  window.addEventListener('resize', function () {
-    setTimeout(sendHeight, 100);
+  window.addEventListener('message', function (event) {
+    if (event.data && event.data.type === 'alcivia-request-height') {
+      sendHeight(true);
+    }
   });
 })();
 </script>
