@@ -233,5 +233,59 @@ button:focus-visible,input:focus-visible{outline:3px solid rgba(174,201,91,.7);o
   $('replay').addEventListener('click',()=>{window.scrollTo({top:0,behavior:'smooth'});toast('Margin Lab ready for another run')});
 })();
 </script>
+  <script>
+(function () {
+  function sendHeight() {
+    const height = Math.max(
+      document.body.scrollHeight,
+      document.body.offsetHeight,
+      document.documentElement.scrollHeight,
+      document.documentElement.offsetHeight,
+      document.documentElement.clientHeight
+    );
+
+    window.parent.postMessage(
+      {
+        type: 'alcivia-simulator-height',
+        height: height
+      },
+      '*'
+    );
+  }
+
+  // Send height when page first loads
+  window.addEventListener('load', function () {
+    sendHeight();
+
+    // Run again after fonts/layout have settled
+    setTimeout(sendHeight, 250);
+    setTimeout(sendHeight, 750);
+  });
+
+  // Automatically detect content/layout changes
+  if ('ResizeObserver' in window) {
+    const resizeObserver = new ResizeObserver(function () {
+      sendHeight();
+    });
+
+    resizeObserver.observe(document.documentElement);
+    resizeObserver.observe(document.body);
+  }
+
+  // Catch interactive elements that may expand/change the page
+  document.addEventListener('click', function () {
+    setTimeout(sendHeight, 100);
+    setTimeout(sendHeight, 400);
+  });
+
+  document.addEventListener('input', function () {
+    setTimeout(sendHeight, 50);
+  });
+
+  window.addEventListener('resize', function () {
+    setTimeout(sendHeight, 100);
+  });
+})();
+</script>
 </body>
 </html>
